@@ -15,6 +15,9 @@ outputcount = 0
 keymag = 1
 prompts = ["a painting in the style of Rembrandt, oil on canvas, Masterpiece", "a painting in the style of Monet, Masterpiece", "a painting in the style of Picasso, Masterpiece", "a painting in the style of Kandinsky, Masterpiece", "a painting in the style of Andy Warhol, Masterpiece", ""]
 promptindex = 1
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+firstpass = True
+pip = None
 
 class PotatoHTTPServer(CGIHTTPRequestHandler):
 
@@ -32,7 +35,7 @@ class PotatoHTTPServer(CGIHTTPRequestHandler):
 
         
     def do_PUT(self):
-        global inputcount, outputcount, prompts, promptindex
+        global inputcount, outputcount, prompts, promptindex, device, pipe
         self.send_response(200)
         self.send_header('Content-type', 'image/png')
         self.end_headers()
@@ -46,12 +49,7 @@ class PotatoHTTPServer(CGIHTTPRequestHandler):
             f.write(png_data)
 
         
-        # Process the PNG file and save
-        controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float16)
-        pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"), torch_dtype=torch.float16)
-        #pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=None, torch_dtype=torch.float16)
-        pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-        pipe.enable_model_cpu_offload()
+        
         image = Image.open(fnamein)
         thresh = 130
         fn = lambda x: 255 if x> thresh else 0
@@ -66,6 +64,13 @@ class PotatoHTTPServer(CGIHTTPRequestHandler):
             self.wfile.write(f.read())
 
 if __name__ == "__main__":
+    ctypes.windll.user32.MessageBoxW(0, "By clicking OK, you agree to the terms and conditions of the model\n license laid out in the ReadMe included in this repository.", "Initializing")
+    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float16)
+    #pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"), torch_dtype=torch.float16)
+    pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=None, torch_dtype=torch.float16)
+    pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    #pipe.enable_model_cpu_offload()
+    pipe.to(device)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     idn = s.getsockname()[0]

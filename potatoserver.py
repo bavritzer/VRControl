@@ -8,7 +8,7 @@ from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
 import socket
 import datetime
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 import threading
 Image.LOAD_TRUNCATED_IMAGES = True
 
@@ -23,6 +23,7 @@ inputpath = ""
 outputpath = ""
 modinputpath = ""
 date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").replace(' ', '').replace('-', '').replace(':', '')
+win = None
 
 class createBox(threading.Thread):
     def run(self):
@@ -31,6 +32,22 @@ class createBox(threading.Thread):
         resp = messagebox.showinfo(title = 'End Session', message= "Server is now running. Press OK to end session.", type = messagebox.OK, parent = root)
         if resp == 'ok':
             os._exit(0)
+
+class createLoader(threading.Thread):
+    def run(self):
+        global win
+        root = tk.Tk()
+        win = root
+        root.geometry('300x120')
+        root.title('Loading...')
+        root.grid()
+        pb = ttk.Progressbar(root, orient = 'horizontal', mode = 'indeterminate', length = 250)
+        pb.grid(column=0, row=0, columnspan=2, padx=10, pady=20)
+        root.eval('tk::PlaceWindow . center')
+        pb.start()
+        root.mainloop()
+        
+
 
 class PotatoHTTPServer(CGIHTTPRequestHandler):
 
@@ -71,12 +88,12 @@ class PotatoHTTPServer(CGIHTTPRequestHandler):
         os.chdir(modinputpath)
         image.save('modinput'+date+str(inputcount-1)+'.png')
         generator = torch.manual_seed(0)
-        print(device == 'cpu')
-        print(device)
+        #print(device == 'cpu')
+        #print(device)
         if(device == torch.device('cpu')):
-            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=6, torch_dtype=torch.float32).images[0]
+            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=7.5).images[0]
         else:
-            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=6, torch_dtype=torch.float16).images[0]    
+            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=7.5).images[0]    
         os.chdir(outputpath)
         image_output.save(fnameout, format='png')
         
@@ -99,7 +116,8 @@ if __name__ == "__main__":
     inputpath = os.path.abspath("inputs")
     modinputpath = os.path.abspath("modinputs")
     outputpath = os.path.abspath("outputs")
-    print(device)
+    a = createLoader().start()
+    #print(device)
     if resp == 'yes':
         if(device == torch.device('cpu')):
             controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float32)
@@ -124,7 +142,8 @@ if __name__ == "__main__":
     idm = idn[-3:]
     idm = idm.replace('.', '')
     idm = str(int(idm)*keymag)
-    messagebox.showinfo(title="Access Code", message = "Please Enter This Code When Prompted on VRControl: \n\n"+idm)
+    win.withdraw()
+    messagebox.showinfo(title="Done Loading!", message = "Please Enter This Code When Prompted on VRControl: \n\n"+idm)
     server_address = (idn, 8080)
     httpd = HTTPServer(server_address, PotatoHTTPServer)
     print('Serving at '+str(idn)+':8080')

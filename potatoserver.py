@@ -17,7 +17,7 @@ outputcount = 0
 keymag = 1
 prompts = ["a painting in the style of Rembrandt, oil on canvas, Masterpiece", "a painting in the style of Monet, Masterpiece", "a painting in the style of Picasso, Masterpiece", "a painting in the style of Kandinsky, Masterpiece", "a painting in the style of Andy Warhol, Masterpiece", ""]
 promptindex = 1
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 pipe = None
 inputpath = ""
 outputpath = ""
@@ -27,6 +27,7 @@ date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").replace(' ', '').re
 class createBox(threading.Thread):
     def run(self):
         root = tk.Tk()
+        root.withdraw()
         resp = messagebox.showinfo(title = 'End Session', message= "Server is now running. Press OK to end session.", type = messagebox.OK, parent = root)
         if resp == 'ok':
             os._exit(0)
@@ -70,7 +71,12 @@ class PotatoHTTPServer(CGIHTTPRequestHandler):
         os.chdir(modinputpath)
         image.save('modinput'+date+str(inputcount-1)+'.png')
         generator = torch.manual_seed(0)
-        image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=6).images[0]
+        print(device == 'cpu')
+        print(device)
+        if(device == torch.device('cpu')):
+            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=6, torch_dtype=torch.float32).images[0]
+        else:
+            image_output = pipe(prompts[promptindex], image, num_inference_steps=10, width=512, height=512, generator = generator, guidance_scale=6, torch_dtype=torch.float16).images[0]    
         os.chdir(outputpath)
         image_output.save(fnameout, format='png')
         
@@ -93,15 +99,23 @@ if __name__ == "__main__":
     inputpath = os.path.abspath("inputs")
     modinputpath = os.path.abspath("modinputs")
     outputpath = os.path.abspath("outputs")
-    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float16)
+    print(device)
     if resp == 'yes':
-        pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=None, torch_dtype=torch.float16)
+        if(device == torch.device('cpu')):
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float32)
+            pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=None, torch_dtype=torch.float32)
+        else:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float16)
+            pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=None, torch_dtype=torch.float16)
     else: 
-        pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"), torch_dtype=torch.float16)
+        if(device == torch.device('cpu')):
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float32)
+            pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"), torch_dtype=torch.float32)
+        else:
+            controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-scribble", torch_dtype=torch.float16)
+            pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet, safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"), torch_dtype=torch.float16)
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-    if(device=='cpu'):
-        pipe.enable_model_cpu_offload()
-    else:
+    if(device != torch.device('cpu')):
         pipe.to(device)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))

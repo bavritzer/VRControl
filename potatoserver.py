@@ -139,9 +139,11 @@ if __name__ == "__main__":
     s.connect(("8.8.8.8", 80))
     idn = s.getsockname()[0]
     s.close()
-    idm = idn[-3:]
+    inds = [i for i,c in enumerate(idn) if c=='.']
+    idm = idn[inds[-2]:inds[-1]]
     idm = idm.replace('.', '')
-    idm = str(int(idm)*keymag)
+    idz = idn[inds[-1]:].replace('.', '')
+    idm = str(hex(int(idm))[2:]+hex(int(idz))[2:])
     win.withdraw()
     messagebox.showinfo(title="Done Loading!", message = "Please Enter This Code When Prompted on VRControl: \n\n"+idm)
     server_address = (idn, 8080)

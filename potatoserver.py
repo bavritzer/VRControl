@@ -143,7 +143,9 @@ if __name__ == "__main__":
     idm = idn[inds[-2]:inds[-1]]
     idm = idm.replace('.', '')
     idz = idn[inds[-1]:].replace('.', '')
-    idm = str(hex(int(idm))[2:]+hex(int(idz))[2:])
+    idm = chr(ord('A')+int(int(idm)/16))+chr(ord('A')+int(idm)%16)
+    idz = chr(ord('A')+int(int(idz)/16))+chr(ord('A')+int(idz)%16)
+    idm = str(idm+idz)
     win.withdraw()
     messagebox.showinfo(title="Done Loading!", message = "Please Enter This Code When Prompted on VRControl: \n\n"+idm)
     server_address = (idn, 8080)

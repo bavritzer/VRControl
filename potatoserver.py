@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from http.server import CGIHTTPRequestHandler, HTTPServer
 import os
 from PIL import Image
